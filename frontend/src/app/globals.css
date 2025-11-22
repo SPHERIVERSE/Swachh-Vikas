@@ -1,0 +1,537 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS Variables for Gaming Theme */
+:root {
+  --primary-green: #2d5016;
+  --secondary-green: #4a7c59;
+  --accent-green: #7fb069;
+  --light-green: #a7c957;
+  --sage-green: #8fbc8f;
+  --forest-green: #355e3b;
+  --earth-brown: #8b4513;
+  --warm-beige: #f5f5dc;
+  --soft-cream: #fefefe;
+  --charcoal: #2c3e50;
+  --success-green: #28a745;
+  --warning-amber: #ffc107;
+  --error-red: #dc3545;
+  --info-blue: #17a2b8;
+  --gaming-purple: #8b5cf6;
+  --gaming-pink: #ec4899;
+  --gaming-cyan: #06b6d4;
+  --gaming-orange: #f97316;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  color: var(--charcoal);
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Enhanced Animations */
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+    opacity: 0.7; 
+  }
+  50% { 
+    transform: translateY(-20px) rotate(180deg); 
+    opacity: 1; 
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Utility Classes */
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease-in-out infinite;
+}
+
+/* Gaming UI Components */
+.game-card {
+  @apply bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-purple-500/30 transition-all duration-500 hover:shadow-purple-500/25 hover:shadow-2xl hover:scale-[1.01] hover:border-purple-400/50;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.15), transparent);
+  transition: left 0.5s;
+}
+
+.game-card:hover::before {
+  left: 100%;
+}
+
+.game-button {
+  @apply px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-opacity-50 relative overflow-hidden shadow-lg;
+  background: linear-gradient(45deg, #8b5cf6, #ec4899);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.game-button:hover {
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+  transform: translateY(-2px) scale(1.05);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.game-button-secondary {
+  @apply px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-opacity-50 shadow-lg;
+  background: linear-gradient(45deg, #06b6d4, #3b82f6);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.game-button-secondary:hover {
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.6);
+  transform: translateY(-2px) scale(1.05);
+  border-color: rgba(6, 182, 212, 0.5);
+}
+
+.game-button-success {
+  background: linear-gradient(45deg, #10b981, #059669);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.game-button-success:hover {
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+  transform: translateY(-2px) scale(1.05);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.game-button-danger {
+  background: linear-gradient(45deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.game-button-danger:hover {
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+  transform: translateY(-2px) scale(1.05);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.game-input {
+  @apply w-full px-4 py-3 rounded-xl border-2 border-purple-500/30 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20 transition-all duration-300 bg-slate-800/70 backdrop-blur-md text-white placeholder-gray-400 shadow-lg;
+  backdrop-filter: blur(10px);
+}
+
+.game-select {
+  @apply w-full px-4 py-3 rounded-xl border-2 border-purple-500/30 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20 transition-all duration-300 bg-slate-800/70 backdrop-blur-md text-white appearance-none shadow-lg;
+  backdrop-filter: blur(10px);
+}
+
+.xp-bar {
+  @apply w-full h-4 bg-slate-700/80 rounded-full overflow-hidden relative shadow-inner;
+  backdrop-filter: blur(5px);
+}
+
+.xp-fill {
+  @apply h-full bg-gradient-to-r from-green-400 via-emerald-400 to-blue-500 transition-all duration-1000 ease-out relative shadow-lg;
+}
+
+.xp-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 2s infinite;
+}
+
+.level-badge {
+  @apply inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-500 text-black shadow-xl border border-yellow-300/50;
+  animation: glow 2s ease-in-out infinite alternate;
+  backdrop-filter: blur(5px);
+}
+
+.achievement-badge {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-purple-500 via-violet-500 to-pink-500 text-white shadow-xl border border-purple-400/50;
+  animation: bounce 1s ease-in-out infinite;
+  backdrop-filter: blur(5px);
+}
+
+.streak-counter {
+  @apply inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white font-bold shadow-xl border border-orange-400/50;
+  animation: pulse 2s ease-in-out infinite;
+  backdrop-filter: blur(5px);
+}
+
+/* Flashcard Flip Animation */
+.flashcard {
+  perspective: 1000px;
+  width: 100%;
+  height: 200px;
+}
+
+.flashcard-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.8s;
+  transform-style: preserve-3d;
+  cursor: pointer;
+}
+
+.flashcard.flipped .flashcard-inner {
+  transform: rotateY(180deg);
+}
+
+.flashcard-front, .flashcard-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+}
+
+.flashcard-front {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #8b5cf6 100%);
+  color: white;
+}
+
+.flashcard-back {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #ec4899 100%);
+  color: white;
+  transform: rotateY(180deg);
+}
+
+/* Quiz Animations */
+.quiz-option {
+  @apply p-4 rounded-xl border-2 border-slate-600/70 cursor-pointer transition-all duration-300 bg-slate-800/70 hover:bg-slate-700/70 hover:border-purple-400 shadow-lg;
+  backdrop-filter: blur(10px);
+}
+
+.quiz-option.selected {
+  @apply border-blue-400 bg-blue-900/40;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.quiz-option.correct {
+  @apply border-green-400 bg-green-900/40;
+  animation: correctAnswer 0.6s ease-out;
+  box-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
+}
+
+.quiz-option.incorrect {
+  @apply border-red-400 bg-red-900/40;
+  animation: incorrectAnswer 0.6s ease-out;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+}
+
+/* Progress Animations */
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.5s ease-in-out;
+}
+
+/* Particle Effects */
+.particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #8b5cf6;
+  border-radius: 50%;
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Keyframe Animations */
+@keyframes glow {
+  from { 
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5), 0 0 20px rgba(255, 193, 7, 0.3); 
+  }
+  to { 
+    box-shadow: 0 0 20px rgba(255, 193, 7, 0.8), 0 0 30px rgba(255, 193, 7, 0.6), 0 0 40px rgba(255, 193, 7, 0.4); 
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+@keyframes pulse {
+  0% { 
+    transform: scale(1); 
+    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+  }
+  50% { 
+    transform: scale(1.05); 
+    box-shadow: 0 6px 25px rgba(249, 115, 22, 0.6);
+  }
+  100% { 
+    transform: scale(1); 
+    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+  }
+}
+
+@keyframes correctAnswer {
+  0% { 
+    transform: scale(1); 
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  }
+  50% { 
+    transform: scale(1.05); 
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 40px rgba(34, 197, 94, 0.4);
+  }
+  100% { 
+    transform: scale(1); 
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.6);
+  }
+}
+
+@keyframes incorrectAnswer {
+  0% { 
+    transform: translateX(0); 
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  }
+  25% { 
+    transform: translateX(-5px); 
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+  }
+  75% { 
+    transform: translateX(5px); 
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+  }
+  100% { 
+    transform: translateX(0); 
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes celebration {
+  0% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(5deg); }
+  50% { transform: scale(1.2) rotate(-5deg); }
+  75% { transform: scale(1.1) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.slide-in-up {
+  animation: slideInUp 0.6s ease-out;
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.6s ease-out;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.6s ease-out;
+}
+
+.celebration {
+  animation: celebration 0.8s ease-out;
+}
+
+/* Gaming Theme Overrides */
+.eco-card {
+  @apply bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/50 transition-all duration-300 hover:shadow-2xl hover:scale-[1.01];
+  backdrop-filter: blur(15px);
+}
+
+.eco-button {
+  @apply px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-opacity-50 shadow-lg;
+}
+
+.eco-button-primary {
+  @apply eco-button bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 focus:ring-green-300;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+}
+
+.eco-button-primary:hover {
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.eco-button-secondary {
+  @apply eco-button bg-gradient-to-r from-gray-500 to-gray-600 text-white hover:from-gray-600 hover:to-gray-700 focus:ring-gray-300;
+  box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+}
+
+.eco-button-secondary:hover {
+  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.eco-input {
+  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-300 focus:border-green-500 focus:ring-4 focus:ring-green-200 transition-all duration-300 bg-white/90 backdrop-blur-sm text-gray-900 placeholder-gray-500 shadow-lg;
+  backdrop-filter: blur(10px);
+}
+
+.eco-select {
+  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-300 focus:border-green-500 focus:ring-4 focus:ring-green-200 transition-all duration-300 bg-white/90 backdrop-blur-sm text-gray-900 appearance-none shadow-lg;
+  backdrop-filter: blur(10px);
+}
+
+.eco-gradient-text {
+  @apply bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent;
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease-in-out infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .game-card {
+    @apply mx-2;
+  }
+  
+  .flashcard {
+    height: 150px;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus styles for better accessibility */
+.focus-visible:focus {
+  @apply outline-none ring-4 ring-purple-300 ring-opacity-50;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #8b5cf6, #ec4899);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #7c3aed, #db2777);
+}
+
+

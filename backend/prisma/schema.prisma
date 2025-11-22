@@ -1,0 +1,440 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// ENUMS (EXISTING & NEW)
+// =======================
+enum Role {
+  ADMIN
+  WORKER
+  CITIZEN
+}
+
+enum QuestionType {
+  MCQ
+  SUBJECTIVE
+}
+
+enum ReportType {
+  illegal_dumping
+  open_toilet
+  dirty_toilet
+  overflow_dustbin
+  dead_animal
+  fowl
+  public_bin_request
+  public_toilet_request
+}
+
+enum ReportStatus {
+  pending
+  escalated
+  assigned
+  resolved
+  working
+}
+
+// ---------------------------
+// Community Enums (NEW)
+// ---------------------------
+enum PostMediaType {
+  TEXT
+  IMAGE
+  VIDEO
+}
+
+enum ReactionType {
+  like
+  dislike
+}
+
+enum FacilityType {
+  TOILET
+  BIN
+  WASTE_FACILITY
+}
+
+// =======================
+// CORE MODELS
+// =======================
+
+// ---------------------------
+// User Model (UPDATED)
+// ---------------------------
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String   @unique
+  password  String
+  age       Int?
+  gender    String?
+  role      Role     @default(CITIZEN)
+  totalXp   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  username  String? @unique
+  avatarUrl String?
+  bio       String?
+
+  @@index([role])
+  @@index([totalXp])
+  @@index([createdAt])
+
+  moduleProgress    UserModuleProgress[]    @relation("UserModuleProgresses")
+  flashcardProgress UserFlashcardProgress[] @relation("UserFlashcardProgresses")
+  videoProgress     UserVideoProgress[]     @relation("UserVideoProgresses")
+  quizProgress      UserQuizProgress[]      @relation("UserQuizProgresses")
+  courseCompletions CourseCompletion[]
+
+  civicReports    CivicReport[]
+  assignedReports CivicReport[]        @relation("AssignedWorker")
+  reportSupport   CivicReportSupport[]
+  workerLocation  WasteWorkerLocation?
+  notifications   Notification[]
+
+  posts     CommunityPost[]
+  reactions CommunityReaction[]
+  followers CommunityFollow[]   @relation("Following")
+  following CommunityFollow[]   @relation("Follower")
+  comments  CommunityComment[] // ✅ fixed
+  pollVotes CommunityPollVote[]
+}
+
+// ---------------------------
+// Community Models (NEW)
+// ---------------------------
+model CommunityPost {
+  id        String        @id @default(uuid())
+  content   String
+  mediaUrl  String?
+  mediaType PostMediaType @default(TEXT)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  reactions CommunityReaction[]
+  comments  CommunityComment[]
+  polls     CommunityPoll[]
+}
+
+model CommunityComment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  postId String
+  userId String
+
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CommunityPoll {
+  id        String   @id @default(uuid())
+  question  String
+  options   String[] // JSON array of poll options
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+
+  postId String
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  votes CommunityPollVote[]
+
+  @@map("community_polls")
+}
+
+model CommunityPollVote {
+  id     String @id @default(uuid())
+  option String // The selected option
+  userId String
+  pollId String
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poll CommunityPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pollId])
+  @@map("community_poll_votes")
+}
+
+model CommunityReaction {
+  userId    String
+  postId    String
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@unique([userId, postId])
+}
+
+model CommunityFollow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  // Note: The relation names ("Follower" and "Following") must match the names used in the User model.
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@unique([followerId, followingId])
+}
+
+// ---------------------------------
+// Training Content Models (EXISTING)
+// ---------------------------------
+model TrainingModule {
+  id        String   @id @default(uuid())
+  title     String
+  role      Role
+  createdAt DateTime @default(now())
+  
+  // ✅ NEW: Course system fields
+  isMandatory    Boolean @default(false)
+  courseType     String  @default("MISCELLANEOUS") // MANDATORY, MISCELLANEOUS
+  courseId       String? // Links to Course if part of a course
+  certificateUrl String? // Certificate template URL
+  
+  flashcards Flashcard[]
+  videos     Video[]
+  quizzes    Quiz[]
+
+  userProgress UserModuleProgress[]
+  course       Course? @relation(fields: [courseId], references: [id])
+}
+
+// ✅ NEW: Course model for mandatory courses
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  isMandatory Boolean  @default(false)
+  role        Role     // Which role this course is for
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  modules     TrainingModule[]
+  completions CourseCompletion[]
+}
+
+// ✅ NEW: Course completion tracking
+model CourseCompletion {
+  id           String   @id @default(uuid())
+  userId       String
+  courseId     String
+  completedAt  DateTime @default(now())
+  certificateUrl String?
+  
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, courseId])
+}
+
+model Video {
+  id       String         @id @default(uuid())
+  moduleId String
+  module   TrainingModule @relation(fields: [moduleId], references: [id])
+  title    String
+  url      String
+  duration Int            @default(0)
+
+  userProgress UserVideoProgress[]
+}
+
+model Flashcard {
+  id       String         @id @default(uuid())
+  moduleId String
+  module   TrainingModule @relation(fields: [moduleId], references: [id])
+  question String
+  answer   String
+
+  userProgress UserFlashcardProgress[]
+}
+
+model Quiz {
+  id        String         @id @default(uuid())
+  moduleId  String
+  module    TrainingModule @relation(fields: [moduleId], references: [id])
+  title     String
+  questions QuizQuestion[]
+
+  userProgress UserQuizProgress[]
+}
+
+model QuizQuestion {
+  id       String       @id @default(uuid())
+  quizId   String
+  quiz     Quiz         @relation(fields: [quizId], references: [id])
+  type     QuestionType
+  question String
+  options  QuizOption[]
+  answer   String?
+}
+
+model QuizOption {
+  id         String       @id @default(uuid())
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id])
+  text       String
+  isCorrect  Boolean      @default(false)
+}
+
+// ---------------------------------
+// Training Progress Models (FIXED)
+// ---------------------------------
+model UserModuleProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  moduleId    String
+  completed   Boolean   @default(false)
+  xpEarned    Int       @default(0)
+  completedAt DateTime?
+
+  user   User           @relation("UserModuleProgresses", fields: [userId], references: [id])
+  module TrainingModule @relation(fields: [moduleId], references: [id])
+
+  @@unique([userId, moduleId])
+}
+
+model UserFlashcardProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  flashcardId String
+  mastered    Boolean   @default(false)
+  xpEarned    Int       @default(0)
+  completedAt DateTime?
+
+  user      User      @relation("UserFlashcardProgresses", fields: [userId], references: [id])
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id])
+
+  @@unique([userId, flashcardId])
+}
+
+model UserVideoProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  videoId     String
+  watched     Boolean   @default(false)
+  xpEarned    Int       @default(0)
+  completedAt DateTime?
+
+  user  User  @relation("UserVideoProgresses", fields: [userId], references: [id])
+  video Video @relation(fields: [videoId], references: [id])
+
+  @@unique([userId, videoId])
+}
+
+model UserQuizProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  quizId      String
+  score       Int?
+  accuracy    Float?
+  xpEarned    Int       @default(0)
+  completedAt DateTime?
+
+  user User @relation("UserQuizProgresses", fields: [userId], references: [id])
+  quiz Quiz @relation(fields: [quizId], references: [id])
+
+  @@unique([userId, quizId])
+}
+
+// ---------------------------------
+// Civic Report Models (EXISTING)
+// ---------------------------------
+model CivicReport {
+  id               String       @id @default(uuid())
+  title            String
+  description      String       @default("")
+  type             ReportType
+  imageUrl         String?
+  latitude         Float
+  longitude        Float
+  status           ReportStatus @default(pending)
+  supportCount     Int          @default(0)
+  oppositionCount  Int          @default(0)
+  resolvedImageUrl String?
+  resolvedNotes    String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  assignedToWorkerId String?
+  assignedToWorker   User?   @relation("AssignedWorker", fields: [assignedToWorkerId], references: [id])
+
+  supports      CivicReportSupport[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([createdById])
+  @@index([assignedToWorkerId])
+  @@index([createdAt])
+}
+
+model CivicReportSupport {
+  id        String   @id @default(uuid())
+  reportId  String
+  userId    String
+  support   Boolean // true = support, false = oppose
+  createdAt DateTime @default(now())
+
+  report CivicReport @relation(fields: [reportId], references: [id])
+  user   User        @relation(fields: [userId], references: [id])
+
+  @@unique([reportId, userId])
+}
+
+model PublicFacility {
+  id        String       @id @default(uuid())
+  type      FacilityType
+  name      String
+  latitude  Float
+  longitude Float
+  addedBy   String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model WasteWorkerLocation {
+  id        String   @id @default(uuid())
+  workerId  String   @unique
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @updatedAt
+
+  worker User @relation(fields: [workerId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  reportId  String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User        @relation(fields: [userId], references: [id])
+  report CivicReport @relation(fields: [reportId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@index([reportId])
+}
