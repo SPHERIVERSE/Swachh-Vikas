@@ -8,7 +8,11 @@ async function bootstrap() {
 
   // Enable CORS for Next.js frontend
   app.enableCors({
-    origin: ['http://localhost:3001'], // frontend URL
+    origin: [
+    	'http://localhost:3001',
+    	'https://reporting-partners-gradually-gmt.trycloudflare.com', // frontend tunnel
+        'https://watched-series-possibility-common.trycloudflare.com',
+    ], // frontend URL
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
