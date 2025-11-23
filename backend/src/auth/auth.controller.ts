@@ -16,7 +16,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 
-type RoleType = 'ADMIN' | 'WORKER' | 'CITIZEN';
+type RoleType = 'ADMIN' | 'WORKER' | 'CITIZEN' | 'BUSINESS';
 
 @Controller('auth')
 export class AuthController {
@@ -30,12 +30,39 @@ export class AuthController {
   @Post('register')
   async register(
     @Body()
-    dto: { email: string; password: string; name: string; phone: string; role?: RoleType },
+    dto: { 
+      email: string; 
+      password: string; 
+      name: string; 
+      phone: string; 
+      role?: RoleType;
+      // Business-specific fields
+      licenseNo?: string;
+      businessType?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+    },
   ) {
-    const allowedRoles: RoleType[] = ['ADMIN', 'WORKER', 'CITIZEN'];
+    const allowedRoles: RoleType[] = ['ADMIN', 'WORKER', 'CITIZEN', 'BUSINESS'];
     const role = allowedRoles.includes(dto.role as RoleType) ? dto.role! : 'CITIZEN';
 
-    return this.auth.registerLocal(dto.email, dto.password, dto.name, dto.phone, role);
+    return this.auth.registerLocal(
+      dto.email, 
+      dto.password, 
+      dto.name, 
+      dto.phone, 
+      role,
+      {
+        licenseNo: dto.licenseNo,
+        businessType: dto.businessType,
+        address: dto.address,
+        city: dto.city,
+        state: dto.state,
+        pincode: dto.pincode,
+      }
+    );
   }
 
   // 🔹 Local login

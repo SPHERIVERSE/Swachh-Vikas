@@ -1,15 +1,37 @@
-import React from 'react';
+// frontend/src/app/layout.tsx
 
-export const metadata = {
-  title: 'Swachh-Vikas - Integrated Waste Management Platform',
-  description: 'Transforming waste management through technology and community engagement',
-};
+'use client'; 
+
+import React, { useState, useEffect } from 'react'; // <-- ADDED useState and useEffect
+// Assuming jwt-decode is available in your project for client-side token parsing
+import { jwtDecode } from 'jwt-decode'; // <-- ADDED
+import { ChatbotFloating } from '../components/ChatbotFloating'; 
+import NotificationBell from '../components/NotificationBell'; // <-- ADDED
+import ProfileIcon from '../components/ProfileIcon'; // <-- ADDED
+
+// Removed 'export const metadata' block as it conflicts with 'use client'.
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // Effect to retrieve user ID from local storage on component mount (client-side)
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      try {
+        // Decode the token to get the user ID (assuming 'sub' claim holds the ID)
+        const decoded: { sub: string } = jwtDecode(token);
+        setCurrentUserId(decoded.sub); 
+      } catch (e) {
+        console.error('Failed to decode token:', e);
+      }
+    }
+  }, []);
+
   return (
     <html lang="en">
       <head>
@@ -39,57 +61,16 @@ export default function RootLayout({
             .eco-button-primary:hover {
               background-color: #16a34a;
             }
-            .eco-button-secondary {
-              background-color: #374151;
-              color: #d1d5db;
-              border: 1px solid #4b5563;
-              transition: all 0.3s ease;
-              font-weight: 600;
-            }
-            .eco-button-secondary:hover {
-              background-color: #4b5563;
-              color: white;
-            }
-            .eco-card {
-              background-color: #1f2937;
-              border-radius: 12px;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px rgba(0, 0, 0, 0.1);
-              transition: all 0.3s ease;
-              border: 1px solid #374151;
-            }
-            .eco-card:hover {
-              transform: translateY(-5px);
-              box-shadow: 0 20px 25px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.1);
-            }
-            .pulse-green {
-              animation: pulse-green 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
-            }
-            @keyframes pulse-green {
-              0%, 100% {
-                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-              }
-              50% {
-                box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
-              }
-            }
-            .float-animation {
-              animation: float 6s ease-in-out infinite;
-            }
-            @keyframes float {
-              0% { transform: translateY(0px) rotate(0deg); }
-              50% { transform: translateY(-20px) rotate(5deg); }
-              100% { transform: translateY(0px) rotate(0deg); }
-            }
           `}
         </style>
       </head>
-      <body className="min-h-screen bg-gray-950 text-gray-300">
-        <header className="bg-gray-900/90 backdrop-blur-lg shadow-xl border-b border-gray-800 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
+      <body>
+        <div className="min-h-screen flex flex-col bg-gray-950">
+          <header className="sticky top-0 z-50 bg-gray-900/90 backdrop-blur-lg shadow-lg border-b border-gray-800">
+            <div className="flex justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <div className="text-green-500 w-6 h-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z"/>
                   </svg>
                 </div>
@@ -99,24 +80,42 @@ export default function RootLayout({
                   </a>
                 </h1>
               </div>
-              <nav>
-                <ul className="flex space-x-4 sm:space-x-6">
-                  <li><a href="/about" className="text-gray-400 hover:text-green-400 transition-colors font-medium">About</a></li>
-                  <li><a href="/services" className="text-gray-400 hover:text-green-400 transition-colors font-medium">Services</a></li>
-                  <li><a href="/contact" className="text-gray-400 hover:text-green-400 transition-colors font-medium">Contact</a></li>
-                </ul>
-              </nav>
+              
+              {/* --- MODIFIED: Added a container for the Bell, Profile Icon and Navigation Links --- */}
+              <div className="flex items-center space-x-4">
+                {/* Conditionally render the Bell if a user is logged in (has an ID) */}
+                {currentUserId && (
+                  <>
+                    <NotificationBell userId={currentUserId} />
+                    <ProfileIcon />
+                  </>
+                )}
+                
+                <nav>
+                  <ul className="flex space-x-4 sm:space-x-6">
+                    <li><a href="/about" className="text-gray-400 hover:text-green-400 transition-colors font-medium">About</a></li>
+                    <li><a href="/services" className="text-gray-400 hover:text-green-400 transition-colors font-medium">Services</a></li>
+                    <li><a href="/contact" className="text-gray-400 hover:text-green-400 transition-colors font-medium">Contact</a></li>
+                  </ul>
+                </nav>
+              </div>
+              {/* ------------------------------------------------------------------ */}
+
             </div>
-          </div>
-        </header>
-        <main className="flex-1 flex flex-col items-center justify-center py-10 px-4 sm:px-6 lg:px-8">
-          {children}
-        </main>
-        <footer className="bg-gray-900/90 backdrop-blur-lg text-gray-500 py-6 mt-12 border-t border-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
-            &copy; {new Date().getFullYear()} Swachh-Vikas. All rights reserved.
-          </div>
-        </footer>
+          </header>
+          <main className="flex-1 flex flex-col items-center justify-center py-10 px-4 sm:px-6 lg:px-8">
+            {children}
+          </main>
+          
+          {/* === Global Floating Chatbot Integration === */}
+          <ChatbotFloating />
+          
+          <footer className="bg-gray-900/90 backdrop-blur-lg text-gray-500 py-6 mt-12 border-t border-gray-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
+              &copy; {new Date().getFullYear()} Swachh-Vikas. All rights reserved. Transforming India's waste management.
+            </div>
+          </footer>
+        </div>
       </body>
     </html>
   );

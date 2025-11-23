@@ -3,14 +3,21 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 // Ensure all required enums are imported
-import { ReportType, ReportStatus, Role } from '@prisma/client';
+import { ReportType, ReportStatus, Role, TransactionSource } from '@prisma/client';
+import { CleanCoinService } from '../cleancoin/cleancoin.service';
 
 @Injectable()
 export class CivicReportService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => CleanCoinService))
+    private cleanCoinService: CleanCoinService,
+  ) {}
 
   async createReport(data: {
     title: string;
@@ -157,6 +164,28 @@ export class CivicReportService {
       where: { id: reportId },
       data: { supportCount: { increment: 1 } },
     });
+
+    // Award CleanCoins for support vote (+2 CC, once per report)
+    try {
+      const hasEarned = await this.cleanCoinService.hasEarnedForAction(
+        userId,
+        TransactionSource.SUPPORT_VOTE,
+        { reportId }
+      );
+      
+      if (!hasEarned) {
+        await this.cleanCoinService.awardCoins(
+          userId,
+          2,
+          TransactionSource.SUPPORT_VOTE,
+          `Supported a civic report`,
+          { reportId }
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail the vote
+      console.error('Failed to award CleanCoins for support vote:', error);
+    }
 
     await this.checkThreshold(reportId);
     return support;
@@ -375,6 +404,28 @@ export class CivicReportService {
         message: `✅ Your report "${updated.title}" has been officially RESOLVED and confirmed by the administration. Thank you!`,
       },
     });
+
+    // Award CleanCoins to the citizen who reported (+25 CC)
+    try {
+      const hasEarned = await this.cleanCoinService.hasEarnedForAction(
+        updated.createdById,
+        TransactionSource.REPORT_RESOLUTION,
+        { reportId }
+      );
+      
+      if (!hasEarned) {
+        await this.cleanCoinService.awardCoins(
+          updated.createdById,
+          25,
+          TransactionSource.REPORT_RESOLUTION,
+          `Report resolved: ${updated.title}`,
+          { reportId }
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail the resolution
+      console.error('Failed to award CleanCoins for report resolution:', error);
+    }
 
     return updated;
   }

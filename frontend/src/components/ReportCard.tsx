@@ -25,9 +25,7 @@ const ReportCard: React.FC<ReportCardProps> = ({
       case 'pending':
         return 'bg-yellow-500';
       case 'escalated':
-        return 'bg-red-500';
       case 'resolved':
-        return 'bg-green-500';
       default:
         return 'bg-gray-500';
     }
@@ -57,8 +55,10 @@ const ReportCard: React.FC<ReportCardProps> = ({
           <Image
             src={report.imageUrl}
             alt={report.title}
-            layout="fill"
-            objectFit="cover"
+            fill // Replaced layout="fill"
+            style={{ objectFit: 'cover' }} // Replaced objectFit="cover"
+            // ✅ FIX: Added responsive sizes to match container width
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="rounded-t-xl"
           />
         </div>
@@ -97,8 +97,10 @@ const ReportCard: React.FC<ReportCardProps> = ({
               <Image
                 src={report.resolvedImageUrl}
                 alt={report.title + ' resolved'}
-                layout="fill"
-                objectFit="cover"
+                fill // Replaced layout="fill"
+                style={{ objectFit: 'cover' }} // Replaced objectFit="cover"
+                // ✅ FIX: Added responsive sizes to match container width
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               />
             </div>
             {report.resolvedNotes && (

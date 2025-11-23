@@ -14,6 +14,7 @@ enum Role {
   ADMIN
   WORKER
   CITIZEN
+  BUSINESS
 }
 
 enum QuestionType {
@@ -60,6 +61,52 @@ enum FacilityType {
   WASTE_FACILITY
 }
 
+enum WasteType {
+  PLASTIC
+  PAPER
+  METAL
+  GLASS
+  ORGANIC
+  ELECTRONIC
+  TEXTILE
+  OTHER
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  EXPIRED
+  CANCELLED
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum NotificationType {
+  CIVIC_REPORT_STATUS
+  BID_ACCEPTED
+  OTHER
+  // You can add 'TRAINING_COMPLETE' here if needed for the frontend DTO
+}
+
+enum DriveStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum QuizStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
 // =======================
 // CORE MODELS
 // =======================
@@ -68,24 +115,30 @@ enum FacilityType {
 // User Model (UPDATED)
 // ---------------------------
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  phone     String   @unique
-  password  String
-  age       Int?
-  gender    String?
-  role      Role     @default(CITIZEN)
-  totalXp   Int      @default(0)
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  name             String
+  profileImageUrl  String?
+  email            String   @unique
+  phone            String   @unique
+  password         String
+  age              Int?
+  gender           String?
+  role             Role     @default(CITIZEN)
+  totalXp          Int      @default(0)
+  cleanCoinBalance Int      @default(0)
+  createdAt        DateTime @default(now())
 
   username  String? @unique
   avatarUrl String?
   bio       String?
 
-  @@index([role])
-  @@index([totalXp])
-  @@index([createdAt])
+  // Business-specific fields
+  licenseNo    String? // Business license number
+  businessType String? // Type of business (e.g., "Recycling Company", "NGO", "Institute")
+  address      String? // Business address
+  city         String?
+  state        String?
+  pincode      String?
 
   moduleProgress    UserModuleProgress[]    @relation("UserModuleProgresses")
   flashcardProgress UserFlashcardProgress[] @relation("UserFlashcardProgresses")
@@ -105,6 +158,29 @@ model User {
   following CommunityFollow[]   @relation("Follower")
   comments  CommunityComment[] // ✅ fixed
   pollVotes CommunityPollVote[]
+
+  // Waste Marketplace
+  wasteListings  WasteListing[]
+  wastePurchases WasteListing[] @relation("WastePurchases")
+  wasteBids      WasteBid[]     @relation("WasteBids")
+
+  // Business features
+  csrFunds            CSRFund[]
+  communityDrives     CommunityDrive[]
+  awarenessQuizzes    AwarenessQuiz[]
+  quizParticipations  AwarenessQuizParticipation[]
+  driveParticipations CommunityDriveParticipation[] @relation("DriveParticipations")
+  rewardsGiven        Reward[]                      @relation("RewardsGiven")
+  rewardsReceived     Reward[]                      @relation("RewardsReceived")
+
+  // CleanCoin system
+  cleanCoinTransactions CleanCoinTransaction[]
+  vouchersCreated       Voucher[]
+  voucherClaims         VoucherClaim[]
+
+  @@index([role])
+  @@index([totalXp])
+  @@index([createdAt])
 }
 
 // ---------------------------
@@ -141,12 +217,12 @@ model CommunityComment {
 }
 
 model CommunityPoll {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   question  String
   options   String[] // JSON array of poll options
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   expiresAt DateTime?
-  isActive  Boolean  @default(true)
+  isActive  Boolean   @default(true)
 
   postId String
   post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -162,7 +238,7 @@ model CommunityPollVote {
   userId String
   pollId String
 
-  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   poll CommunityPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
 
   @@unique([userId, pollId])
@@ -203,19 +279,19 @@ model TrainingModule {
   title     String
   role      Role
   createdAt DateTime @default(now())
-  
+
   // ✅ NEW: Course system fields
   isMandatory    Boolean @default(false)
   courseType     String  @default("MISCELLANEOUS") // MANDATORY, MISCELLANEOUS
   courseId       String? // Links to Course if part of a course
   certificateUrl String? // Certificate template URL
-  
+
   flashcards Flashcard[]
   videos     Video[]
   quizzes    Quiz[]
 
   userProgress UserModuleProgress[]
-  course       Course? @relation(fields: [courseId], references: [id])
+  course       Course?              @relation(fields: [courseId], references: [id])
 }
 
 // ✅ NEW: Course model for mandatory courses
@@ -224,25 +300,25 @@ model Course {
   title       String
   description String?
   isMandatory Boolean  @default(false)
-  role        Role     // Which role this course is for
+  role        Role // Which role this course is for
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   modules     TrainingModule[]
   completions CourseCompletion[]
 }
 
 // ✅ NEW: Course completion tracking
 model CourseCompletion {
-  id           String   @id @default(uuid())
-  userId       String
-  courseId     String
-  completedAt  DateTime @default(now())
+  id             String   @id @default(uuid())
+  userId         String
+  courseId       String
+  completedAt    DateTime @default(now())
   certificateUrl String?
-  
+
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, courseId])
 }
 
@@ -426,15 +502,292 @@ model WasteWorkerLocation {
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  reportId  String
+  reportId  String?
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user   User        @relation(fields: [userId], references: [id])
-  report CivicReport @relation(fields: [reportId], references: [id])
+  user   User              @relation(fields: [userId], references: [id])
+  report CivicReport?      @relation(fields: [reportId], references: [id])
+  type   NotificationType?
 
   @@index([userId, isRead])
   @@index([createdAt])
   @@index([reportId])
+}
+
+// =======================
+// WASTE MARKETPLACE MODELS
+// =======================
+model WasteListing {
+  id          String        @id @default(uuid())
+  wasteType   WasteType
+  title       String
+  description String?
+  imageUrl    String?
+  weight      Float // in kg
+  price       Float? // optional price per kg
+  latitude    Float
+  longitude   Float
+  status      ListingStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  soldAt      DateTime?
+
+  sellerId String
+  seller   User   @relation(fields: [sellerId], references: [id])
+
+  buyerId String? // Business that purchased (after bid acceptance)
+  buyer   User?   @relation("WastePurchases", fields: [buyerId], references: [id])
+
+  bids WasteBid[]
+
+  @@index([sellerId])
+  @@index([buyerId])
+  @@index([wasteType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model WasteBid {
+  id        String    @id @default(uuid())
+  amount    Float // Bid amount per kg or total
+  message   String? // Optional message from bidder
+  status    BidStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  listingId String
+  bidderId  String
+
+  listing WasteListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bidder  User         @relation("WasteBids", fields: [bidderId], references: [id])
+
+  @@index([listingId])
+  @@index([bidderId])
+  @@index([status])
+}
+
+// =======================
+// BUSINESS FEATURES MODELS
+// =======================
+model CSRFund {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  amount          Float
+  allocatedAmount Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  businessId String
+  business   User   @relation(fields: [businessId], references: [id])
+
+  allocations CSRFundAllocation[]
+
+  @@index([businessId])
+}
+
+model CSRFundAllocation {
+  id        String   @id @default(uuid())
+  amount    Float
+  purpose   String
+  createdAt DateTime @default(now())
+
+  fundId String
+  fund   CSRFund @relation(fields: [fundId], references: [id])
+
+  @@index([fundId])
+}
+
+model CommunityDrive {
+  id                  String      @id @default(uuid())
+  title               String
+  description         String
+  location            String
+  latitude            Float?
+  longitude           Float?
+  startDate           DateTime
+  endDate             DateTime
+  status              DriveStatus @default(UPCOMING)
+  targetParticipants  Int?
+  currentParticipants Int         @default(0)
+  rewardAmount        Float? // Reward per participant
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  organizerId String
+  organizer   User   @relation(fields: [organizerId], references: [id])
+
+  participants CommunityDriveParticipation[]
+
+  @@index([organizerId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model CommunityDriveParticipation {
+  id           String   @id @default(uuid())
+  joinedAt     DateTime @default(now())
+  rewardEarned Float    @default(0)
+
+  driveId String
+  userId  String
+
+  drive CommunityDrive @relation(fields: [driveId], references: [id])
+  user  User           @relation("DriveParticipations", fields: [userId], references: [id])
+
+  @@unique([driveId, userId])
+  @@index([driveId])
+  @@index([userId])
+}
+
+model AwarenessQuiz {
+  id           String     @id @default(uuid())
+  title        String
+  description  String?
+  questions    Json // Array of quiz questions
+  rewardAmount Float // Reward for completing quiz
+  maxAttempts  Int        @default(1)
+  startDate    DateTime
+  endDate      DateTime
+  status       QuizStatus @default(DRAFT)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  cleanCoinReward Int @default(0)
+  targetRole      Role?
+
+  organizerId String
+  organizer   User   @relation(fields: [organizerId], references: [id])
+
+  participations AwarenessQuizParticipation[]
+
+  @@index([organizerId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model AwarenessQuizParticipation {
+  id           String   @id @default(uuid())
+  score        Float
+  answers      Json // User's answers
+  rewardEarned Float    @default(0)
+  completedAt  DateTime @default(now())
+
+  quizId String
+  userId String
+
+  quiz AwarenessQuiz @relation(fields: [quizId], references: [id])
+  user User          @relation(fields: [userId], references: [id])
+
+  @@unique([quizId, userId])
+  @@index([quizId])
+  @@index([userId])
+}
+
+model Reward {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  amount      Float
+  type        String // XP, MONEY, CERTIFICATE, etc.
+  createdAt   DateTime @default(now())
+
+  businessId  String
+  recipientId String
+
+  business  User @relation("RewardsGiven", fields: [businessId], references: [id])
+  recipient User @relation("RewardsReceived", fields: [recipientId], references: [id])
+
+  @@index([businessId])
+  @@index([recipientId])
+}
+
+// =======================
+// CLEANCOIN SYSTEM MODELS
+// =======================
+enum TransactionType {
+  EARNED
+  SPENT
+}
+
+enum TransactionSource {
+  COURSE_COMPLETION
+  REPORT_RESOLUTION
+  SUPPORT_VOTE
+  MARKETPLACE_SALE
+  VOUCHER_PURCHASE
+  QUIZ_COMPLETION
+  VOUCHER_CLAIM
+}
+
+model CleanCoinTransaction {
+  id          String            @id @default(uuid())
+  userId      String
+  amount      Int // Positive for earned, negative for spent
+  type        TransactionType
+  source      TransactionSource
+  description String?
+  createdAt   DateTime          @default(now())
+
+  // Optional references to related entities
+  courseId  String?
+  reportId  String?
+  listingId String?
+  voucherId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([source])
+}
+
+enum VoucherStatus {
+  ACTIVE
+  EXPIRED
+  REDEEMED
+  CANCELLED
+}
+
+model Voucher {
+  id              String        @id @default(uuid())
+  title           String
+  description     String?
+  cleanCoinCost   Int // Cost in CleanCoins
+  discountAmount  Float? // Optional discount amount
+  discountPercent Float? // Optional discount percentage
+  terms           String? // Terms and conditions
+  expiryDate      DateTime?
+  status          VoucherStatus @default(ACTIVE)
+  totalQuantity   Int? // Total vouchers available (null = unlimited)
+  claimedCount    Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  businessId String
+  business   User   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  claims VoucherClaim[]
+
+  @@index([businessId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model VoucherClaim {
+  id         String    @id @default(uuid())
+  userId     String
+  voucherId  String
+  claimedAt  DateTime  @default(now())
+  redeemedAt DateTime?
+  isRedeemed Boolean   @default(false)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, voucherId]) // Prevent duplicate claims
+  @@index([userId])
+  @@index([voucherId])
+  @@index([claimedAt])
 }

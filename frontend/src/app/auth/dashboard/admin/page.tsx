@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import RoleGuard from '@/components/RoleGuard';
 import NotificationBell from '@/components/NotificationBell';
+import NotificationPanel from '@/components/NotificationPanel';
 import { useEffect, useState } from 'react';
 import api from '@/utils/axiosInstance';
 
@@ -155,6 +156,18 @@ export default function AdminDashboard() {
                 <p className="text-purple-200 text-sm">Add, edit, or delete public facilities and waste vehicles</p>
               </div>
             </Link>
+
+            <Link href="/auth/dashboard/admin/csr-funds">
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer group">
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-2xl">💰</span>
+                  </div>
+                  <h2 className="text-xl font-semibold text-white group-hover:text-emerald-300 transition-colors">CSR Funds</h2>
+                </div>
+                <p className="text-emerald-200 text-sm">View all CSR funds from businesses</p>
+              </div>
+            </Link>
           </div>
         </div>
 
@@ -177,6 +190,7 @@ export default function AdminDashboard() {
             animation: fade-in-up 0.6s ease-out forwards;
           }
         `}</style>
+        {currentUserId && <NotificationPanel userId={currentUserId} />}
       </div>
     </RoleGuard>
   );

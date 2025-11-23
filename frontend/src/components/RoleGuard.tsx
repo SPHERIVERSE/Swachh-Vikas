@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import api from '@/utils/axiosInstance';
 
 interface RoleGuardProps {
-  role?: 'ADMIN' | 'WORKER' | 'CITIZEN';
-  roles?: Array<'ADMIN' | 'WORKER' | 'CITIZEN'>;
+  role?: 'ADMIN' | 'WORKER' | 'CITIZEN' | 'BUSINESS';
+  roles?: Array<'ADMIN' | 'WORKER' | 'CITIZEN' | 'BUSINESS'>;
   children: React.ReactNode;
 }
 

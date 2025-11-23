@@ -2,6 +2,7 @@
 
 import RoleGuard from '@/components/RoleGuard';
 import NotificationBell from '@/components/NotificationBell';
+import NotificationPanel from '@/components/NotificationPanel';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import api from '@/utils/axiosInstance';
@@ -467,6 +468,25 @@ export default function WorkerDashboard() {
 
           {/* Additional Features */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+            {/* Awareness Quizzes */}
+            <div
+              className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl cursor-pointer group hover:scale-105 transition-all duration-500"
+              onClick={() => router.push('/auth/dashboard/worker/quizzes')}
+            >
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
+                  <span className="text-3xl">📝</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold text-lg mb-1">Awareness Quizzes</h3>
+                  <p className="text-green-200 text-sm">Test knowledge and earn rewards</p>
+                </div>
+                <svg className="w-6 h-6 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+
             {/* Leaderboard */}
             <div
               className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl cursor-pointer group hover:scale-105 transition-all duration-500"
@@ -546,6 +566,7 @@ export default function WorkerDashboard() {
             animation: shimmer 2s infinite;
           }
         `}</style>
+        {currentUserId && <NotificationPanel userId={currentUserId} />}
       </div>
     </RoleGuard>
   );

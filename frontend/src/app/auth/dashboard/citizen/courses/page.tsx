@@ -1,8 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/utils/axiosInstance';
 import { Role } from '@prisma/client';
+import { IoSchoolOutline, IoRibbonOutline, IoFolderOutline } from 'react-icons/io5';
+import { TbCertificate } from 'react-icons/tb';
+
+// --- INTERFACE DEFINITION (based on the snippet) ---
+interface Module {
+    id: string;
+    title: string;
+    userProgress: Array<{
+      completed: boolean;
+      xpEarned: number;
+    }>;
+}
 
 interface Course {
   id: string;
@@ -10,20 +23,75 @@ interface Course {
   description: string;
   isMandatory: boolean;
   role: Role;
-  modules: Array<{
-    id: string;
-    title: string;
-    userProgress: Array<{
-      completed: boolean;
-      xpEarned: number;
-    }>;
-  }>;
+  modules: Module[];
   isCompleted: boolean;
   completionDate?: string;
   certificateUrl?: string;
 }
 
+// --- HELPER COMPONENTS ---
+
+// A functional component to render a single course card
+const CourseCard: React.FC<{ course: Course, onStart: (id: string) => void, onDownload: (url: string) => void }> = ({ course, onStart, onDownload }) => {
+    
+    // Calculate progress based on whether all modules have progress records
+    const totalModules = course.modules.length;
+    const completedModules = course.modules.filter(m => 
+        m.userProgress.some(p => p.completed)
+    ).length;
+
+    const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+    
+    // Determine button text and color
+    const buttonText = course.isCompleted ? 'View Course' : (progressPercent > 0 ? 'Continue' : 'Start Course');
+    const buttonColor = course.isCompleted ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700';
+
+    return (
+        <div className="bg-gray-800 p-6 rounded-lg shadow-xl flex flex-col justify-between transition-transform hover:scale-[1.01]">
+            <div>
+                <h3 className="text-xl font-bold text-white mb-2">{course.title}</h3>
+                <p className="text-gray-400 mb-4 line-clamp-3">{course.description}</p>
+                
+                {/* Progress Bar */}
+                <div className="mb-4">
+                    <p className="text-sm font-medium text-gray-300">Progress: {progressPercent}%</p>
+                    <div className="w-full bg-gray-700 rounded-full h-2.5 mt-1">
+                        <div 
+                            className={`h-2.5 rounded-full ${course.isCompleted ? 'bg-green-500' : 'bg-blue-500'}`} 
+                            style={{ width: `${progressPercent}%` }}
+                        ></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-4">
+                <button
+                    onClick={() => onStart(course.id)}
+                    className={`flex-1 ${buttonColor} text-white py-2 px-4 rounded-lg font-semibold transition-colors`}
+                >
+                    {buttonText}
+                </button>
+                
+                {course.isCompleted && course.certificateUrl && (
+                    <button
+                        onClick={() => onDownload(course.certificateUrl!)}
+                        className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center transition-colors"
+                        title="Download Certificate"
+                    >
+                        <TbCertificate className="w-5 h-5 mr-1" />
+                        Cert
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+// --- MAIN COMPONENT ---
 export default function CitizenCoursesPage() {
+  const router = useRouter();
   const [mandatoryCourses, setMandatoryCourses] = useState<Course[]>([]);
   const [miscellaneousCourses, setMiscellaneousCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,321 +99,158 @@ export default function CitizenCoursesPage() {
 
   const fetchCourses = async () => {
     setLoading(true);
+    
+    // ✅ FIX: Critical token check and redirection
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.error('Authentication token not found. Redirecting to login.');
+        router.push('/login'); 
+        setLoading(false);
+        return; 
+    }
+
+    const authHeader = {
+      headers: { Authorization: `Bearer ${token}` },
+    };
+
     try {
-      const token = localStorage.getItem('access_token');
+      // NOTE: Assuming your API returns mandatory and miscellaneous courses separately, 
+      // with progress data nested within
       const [mandatoryRes, miscellaneousRes] = await Promise.all([
-        api.get('/courses/mandatory', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        api.get('/courses/miscellaneous', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        api.get('/courses/mandatory', authHeader),
+        api.get('/courses/miscellaneous', authHeader),
       ]);
 
       setMandatoryCourses(mandatoryRes.data);
       setMiscellaneousCourses(miscellaneousRes.data);
+      
     } catch (error) {
-      console.error('Failed to fetch courses:', error);
+      console.error('Error fetching courses:', error);
+      // In a real app, you would show a toast/alert here
     } finally {
       setLoading(false);
     }
   };
 
-  const completeCourse = async (courseId: string) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      await api.post(`/courses/${courseId}/complete`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      alert('Course completed successfully! Certificate generated.');
-      fetchCourses();
-    } catch (error) {
-      console.error('Failed to complete course:', error);
-      alert('Failed to complete course. Make sure all modules are completed.');
-    }
-  };
-
-  const downloadCertificate = (certificateUrl: string, courseTitle: string) => {
-    // Create a temporary link to download the certificate
-    const link = document.createElement('a');
-    link.href = certificateUrl;
-    link.download = `${courseTitle}_Certificate.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   useEffect(() => {
     fetchCourses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getCompletionProgress = (course: Course) => {
-    const totalModules = course.modules.length;
-    const completedModules = course.modules.filter(module => 
-      module.userProgress.some(progress => progress.completed)
-    ).length;
-    return { completed: completedModules, total: totalModules };
+  const handleStartCourse = (courseId: string) => {
+      // Navigate to the course module view
+      router.push(`/auth/dashboard/citizen/courses/${courseId}`);
   };
 
-  const canCompleteCourse = (course: Course) => {
-    const progress = getCompletionProgress(course);
-    return progress.completed === progress.total && !course.isCompleted;
+  const handleDownloadCertificate = (url: string) => {
+    if (url) {
+      // Open the certificate URL in a new tab
+      window.open(url, '_blank');
+    }
   };
+  
+  // Courses that are completed and have a certificate URL
+  const completedCourses = [...mandatoryCourses, ...miscellaneousCourses].filter(
+      c => c.isCompleted && c.certificateUrl
+  );
 
-  if (loading) {
+  const getActiveCourses = () => {
+    switch (activeTab) {
+      case 'mandatory':
+        return mandatoryCourses;
+      case 'miscellaneous':
+        return miscellaneousCourses;
+      case 'certificates':
+        return completedCourses;
+      default:
+        return [];
+    }
+  };
+  
+  const activeCourses = getActiveCourses();
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center py-16">
+          <div className="w-8 h-8 border-4 border-t-4 border-t-blue-500 border-gray-700 rounded-full animate-spin"></div>
+          <p className="ml-4 text-gray-400">Loading courses...</p>
+        </div>
+      );
+    }
+
+    if (activeCourses.length === 0) {
+      const message = activeTab === 'certificates' 
+        ? "You haven't earned any certificates yet. Complete a course to see it here."
+        : `No ${activeTab} courses available at this time. Check back later!`;
+
+      return (
+        <div className="text-center text-gray-400 py-16 bg-gray-800 rounded-lg">
+          <IoFolderOutline className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+          <p className="text-lg">{message}</p>
+        </div>
+      );
+    }
+    
+    // Render the list of courses/certificates
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading courses...</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {activeCourses.map((course) => (
+          <CourseCard 
+            key={course.id} 
+            course={course} 
+            onStart={handleStartCourse} 
+            onDownload={handleDownloadCertificate} 
+          />
+        ))}
       </div>
     );
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">My Courses</h1>
-          <p className="text-gray-300">Complete courses to earn certificates and XP</p>
-        </div>
+    <div className="p-4 md:p-8 bg-gray-900 min-h-screen">
+      <h1 className="text-3xl font-bold text-white mb-6">Citizen Training & Education</h1>
+      <p className="text-gray-400 mb-8">Improve your civic knowledge and earn rewards by completing courses.</p>
 
-        {/* Tabs */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 mb-6">
-          <div className="flex border-b border-white/20">
-            {[
-              { id: 'mandatory', label: 'Mandatory Courses', count: mandatoryCourses.length },
-              { id: 'miscellaneous', label: 'Miscellaneous Courses', count: miscellaneousCourses.length },
-              { id: 'certificates', label: 'My Certificates', count: [...mandatoryCourses, ...miscellaneousCourses].filter(c => c.isCompleted).length },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-6 py-4 font-medium transition-colors flex items-center space-x-2 ${
-                  activeTab === tab.id
-                    ? 'text-purple-400 border-b-2 border-purple-400'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className="bg-white/20 text-white px-2 py-1 rounded-full text-xs">
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="p-6">
-            {activeTab === 'mandatory' && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">Mandatory Courses</h2>
-                  <p className="text-gray-300">These courses are required for your role and must be completed.</p>
-                </div>
-
-                {mandatoryCourses.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {mandatoryCourses.map((course) => {
-                      const progress = getCompletionProgress(course);
-                      const progressPercentage = (progress.completed / progress.total) * 100;
-                      const canComplete = canCompleteCourse(course);
-
-                      return (
-                        <div
-                          key={course.id}
-                          className="bg-white/10 backdrop-blur-xl rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
-                        >
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-white font-semibold text-lg">{course.title}</h3>
-                            <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                              MANDATORY
-                            </span>
-                          </div>
-
-                          <p className="text-gray-300 text-sm mb-4">{course.description}</p>
-
-                          <div className="space-y-3 mb-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-300 text-sm">Progress:</span>
-                              <span className="text-white font-semibold">
-                                {progress.completed}/{progress.total} modules
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2">
-                              <div 
-                                className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${progressPercentage}%` }}
-                              ></div>
-                            </div>
-                            <div className="text-gray-400 text-xs text-center">
-                              {progressPercentage.toFixed(1)}% complete
-                            </div>
-                          </div>
-
-                          <div className="flex space-x-2">
-                            {course.isCompleted ? (
-                              <div className="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg text-center">
-                                ✅ Completed
-                              </div>
-                            ) : canComplete ? (
-                              <button
-                                onClick={() => completeCourse(course.id)}
-                                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                              >
-                                Complete Course
-                              </button>
-                            ) : (
-                              <div className="flex-1 bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-center">
-                                In Progress
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">
-                    No mandatory courses assigned yet
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'miscellaneous' && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">Miscellaneous Courses</h2>
-                  <p className="text-gray-300">Optional courses for extra XP and learning opportunities.</p>
-                </div>
-
-                {miscellaneousCourses.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {miscellaneousCourses.map((course) => {
-                      const progress = getCompletionProgress(course);
-                      const progressPercentage = (progress.completed / progress.total) * 100;
-                      const canComplete = canCompleteCourse(course);
-
-                      return (
-                        <div
-                          key={course.id}
-                          className="bg-white/10 backdrop-blur-xl rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
-                        >
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-white font-semibold text-lg">{course.title}</h3>
-                            <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                              OPTIONAL
-                            </span>
-                          </div>
-
-                          <p className="text-gray-300 text-sm mb-4">{course.description}</p>
-
-                          <div className="space-y-3 mb-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-300 text-sm">Progress:</span>
-                              <span className="text-white font-semibold">
-                                {progress.completed}/{progress.total} modules
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2">
-                              <div 
-                                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${progressPercentage}%` }}
-                              ></div>
-                            </div>
-                            <div className="text-gray-400 text-xs text-center">
-                              {progressPercentage.toFixed(1)}% complete
-                            </div>
-                          </div>
-
-                          <div className="flex space-x-2">
-                            {course.isCompleted ? (
-                              <div className="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg text-center">
-                                ✅ Completed
-                              </div>
-                            ) : canComplete ? (
-                              <button
-                                onClick={() => completeCourse(course.id)}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                              >
-                                Complete Course
-                              </button>
-                            ) : (
-                              <div className="flex-1 bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-center">
-                                In Progress
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">
-                    No miscellaneous courses available yet
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'certificates' && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">My Certificates</h2>
-                  <p className="text-gray-300">Download your earned certificates</p>
-                </div>
-
-                {[...mandatoryCourses, ...miscellaneousCourses].filter(c => c.isCompleted).length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[...mandatoryCourses, ...miscellaneousCourses]
-                      .filter(course => course.isCompleted)
-                      .map((course) => (
-                        <div
-                          key={course.id}
-                          className="bg-white/10 backdrop-blur-xl rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300"
-                        >
-                          <div className="text-center">
-                            <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                              </svg>
-                            </div>
-                            <h3 className="text-white font-semibold text-lg mb-2">{course.title}</h3>
-                            <p className="text-gray-400 text-sm mb-4">
-                              Completed: {course.completionDate ? new Date(course.completionDate).toLocaleDateString() : 'Recently'}
-                            </p>
-                            {course.certificateUrl && (
-                              <button
-                                onClick={() => downloadCertificate(course.certificateUrl!, course.title)}
-                                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                              >
-                                Download Certificate
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-400 py-8">
-                    <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                      </svg>
-                    </div>
-                    <p className="text-xl">No certificates earned yet</p>
-                    <p className="text-sm mt-2">Complete courses to earn your first certificate!</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Tab Navigation */}
+      <div className="flex space-x-2 md:space-x-4 border-b border-gray-700 mb-8">
+        <button
+          onClick={() => setActiveTab('mandatory')}
+          className={`flex items-center px-4 py-2 text-sm md:text-base font-medium transition-colors ${
+            activeTab === 'mandatory'
+              ? 'text-blue-400 border-b-2 border-blue-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <IoSchoolOutline className="w-5 h-5 mr-2" />
+          Mandatory
+        </button>
+        <button
+          onClick={() => setActiveTab('miscellaneous')}
+          className={`flex items-center px-4 py-2 text-sm md:text-base font-medium transition-colors ${
+            activeTab === 'miscellaneous'
+              ? 'text-blue-400 border-b-2 border-blue-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <IoRibbonOutline className="w-5 h-5 mr-2" />
+          Miscellaneous
+        </button>
+        <button
+          onClick={() => setActiveTab('certificates')}
+          className={`flex items-center px-4 py-2 text-sm md:text-base font-medium transition-colors ${
+            activeTab === 'certificates'
+              ? 'text-blue-400 border-b-2 border-blue-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <TbCertificate className="w-5 h-5 mr-2" />
+          Certificates ({completedCourses.length})
+        </button>
       </div>
+
+      {/* Content Area */}
+      {renderContent()}
     </div>
   );
 }
-
-
-
-
-

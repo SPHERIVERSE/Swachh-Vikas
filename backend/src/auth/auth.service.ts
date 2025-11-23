@@ -11,40 +11,60 @@ export class AuthService {
 
   // 🔹 Register with default CITIZEN role
   async registerLocal(
-  email: string,
-  password: string,
-  name: string,
-  phone: string,
-  role: string = 'CITIZEN',
-) {
-  const existingUser = await this.prisma.user.findFirst({
-    where: { OR: [{ email }, { phone }] },
-  });
-
-  if (existingUser) {
-    if (existingUser.email === email) {
-      throw new BadRequestException('Email already exists');
+    email: string,
+    password: string,
+    name: string,
+    phone: string,
+    role: string = 'CITIZEN',
+    businessData?: {
+      licenseNo?: string;
+      businessType?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
     }
-    if (existingUser.phone === phone) {
-      throw new BadRequestException('Phone already exists');
+  ) {
+    const existingUser = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
+    });
+
+    if (existingUser) {
+      if (existingUser.email === email) {
+        throw new BadRequestException('Email already exists');
+      }
+      if (existingUser.phone === phone) {
+        throw new BadRequestException('Phone already exists');
+      }
     }
-  }
 
-  const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 10);
 
-  // ✅ Convert string to Prisma enum Role
-  const prismaRole: Role = role as Role;
+    // ✅ Convert string to Prisma enum Role
+    const prismaRole: Role = role as Role;
 
-  return this.prisma.user.create({
-    data: {
+    const userData: any = {
       email,
       password: hash,
       name,
       phone,
-      role: prismaRole, // ✅ uses passed role
-    },
-  });
-}
+      role: prismaRole,
+    };
+
+    // Add business-specific fields if role is BUSINESS
+    if (role === 'BUSINESS' && businessData) {
+      userData.licenseNo = businessData.licenseNo || null;
+      userData.businessType = businessData.businessType || null;
+      userData.address = businessData.address || null;
+      userData.city = businessData.city || null;
+      userData.state = businessData.state || null;
+      userData.pincode = businessData.pincode || null;
+    }
+
+    return this.prisma.user.create({
+      data: userData,
+    });
+  }
 
 
   // 🔹 Login includes role in JWT

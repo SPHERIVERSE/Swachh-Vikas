@@ -4,7 +4,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import axios from '@/utils/axiosInstance';
 import RoleGuard from '@/components/RoleGuard';
-import NotificationBell from '@/components/NotificationBell';
 import api from '@/utils/axiosInstance';
 import 'leaflet/dist/leaflet.css';
 import ReportCard from '@/components/ReportCard';
@@ -246,7 +245,6 @@ const CivicReportPage = () => {
                 </div>
                 {currentUserId && (
                   <div className="ml-4">
-                    <NotificationBell userId={currentUserId} />
                   </div>
                 )}
               </div>

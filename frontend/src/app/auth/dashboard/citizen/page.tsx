@@ -2,6 +2,7 @@
 
 import RoleGuard from '@/components/RoleGuard';
 import NotificationBell from '@/components/NotificationBell';
+import NotificationPanel from '@/components/NotificationPanel';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import api from '@/utils/axiosInstance';
@@ -45,6 +46,7 @@ export default function CitizenDashboard() {
   const [error, setError] = useState('');
   const [particles, setParticles] = useState<Particle[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [cleanCoinBalance, setCleanCoinBalance] = useState<number>(0);
 
   const token =
     typeof window !== 'undefined'
@@ -78,6 +80,16 @@ export default function CitizenDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUserRank(rankRes.data);
+
+      // Fetch CleanCoin balance
+      try {
+        const coinRes = await api.get('/cleancoin/balance', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCleanCoinBalance(coinRes.data.balance || 0);
+      } catch (err) {
+        console.error('Failed to fetch CleanCoin balance:', err);
+      }
 
       setError('');
     } catch (err: any) {
@@ -222,6 +234,18 @@ export default function CitizenDashboard() {
                       )}
                     </div>
                     <p className="text-xs text-blue-200 mt-2 font-semibold">Day Streak</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="relative">
+                      <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-white">{cleanCoinBalance}</div>
+                          <div className="text-xs text-green-100">🪙</div>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-blue-200 mt-2 font-semibold">CleanCoins</p>
                   </div>
                 </div>
               </div>
@@ -537,6 +561,64 @@ export default function CitizenDashboard() {
             {/* Leaderboard */}
             <div
               className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl cursor-pointer group hover:scale-105 transition-all duration-500"
+              onClick={() => router.push('/auth/dashboard/citizen/marketplace')}
+            >
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold text-lg mb-1">Waste Marketplace</h3>
+                  <p className="text-blue-200 text-sm">List your waste and turn it into value</p>
+                </div>
+                <svg className="w-6 h-6 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Awareness Quizzes */}
+            <div
+              className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl cursor-pointer group hover:scale-105 transition-all duration-500"
+              onClick={() => router.push('/auth/dashboard/citizen/quizzes')}
+            >
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
+                  <span className="text-3xl">📝</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold text-lg mb-1">Awareness Quizzes</h3>
+                  <p className="text-blue-200 text-sm">Test knowledge and earn rewards</p>
+                </div>
+                <svg className="w-6 h-6 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Voucher Marketplace */}
+            <div
+              className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl cursor-pointer group hover:scale-105 transition-all duration-500"
+              onClick={() => router.push('/auth/dashboard/citizen/vouchers')}
+            >
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl">
+                  <span className="text-3xl">🪙</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold text-lg mb-1">Voucher Marketplace</h3>
+                  <p className="text-blue-200 text-sm">Redeem CleanCoins for vouchers</p>
+                </div>
+                <svg className="w-6 h-6 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+
+            <div
+              className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer group"
               onClick={() => router.push('/auth/dashboard/citizen/leaderboard')}
             >
               <div className="flex items-center space-x-4 mb-4">
@@ -588,6 +670,7 @@ export default function CitizenDashboard() {
             animation: shimmer 2s infinite;
           }
         `}</style>
+        {currentUserId && <NotificationPanel userId={currentUserId} />}
       </div>
     </RoleGuard>
   );

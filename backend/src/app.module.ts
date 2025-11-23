@@ -9,6 +9,11 @@ import { CivicReportModule } from './civic-report/civic-report.module';
 import { MapsModule } from './maps/maps.module';
 import { APP_PIPE } from '@nestjs/core';
 import { CommunityModule } from './community/community.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { BusinessModule } from './business/business.module';
+import { GeminiModule } from './gemini/gemini.module';
+import { NotificationModule } from './notification/notification.module';
+import { CleanCoinModule } from './cleancoin/cleancoin.module';
 
 @Module({
   imports: [
@@ -21,6 +26,11 @@ import { CommunityModule } from './community/community.module';
     CivicReportModule,
     MapsModule,
     CommunityModule,
+    MarketplaceModule,
+    BusinessModule,
+    GeminiModule,
+    NotificationModule,
+    CleanCoinModule,
   ],
   controllers: [], // Ensure this is not missing if you have no global controllers
   providers: [

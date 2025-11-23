@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, TransactionSource } from '@prisma/client';
+import { CleanCoinService } from '../cleancoin/cleancoin.service';
 
 @Injectable()
 export class CourseService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => CleanCoinService))
+    private cleanCoinService: CleanCoinService,
+  ) {}
 
   // ✅ Create a new course (mandatory or miscellaneous)
   async createCourse(
@@ -136,6 +141,28 @@ export class CourseService {
         user: true,
       },
     });
+
+    // Award CleanCoins for course completion (+50 CC)
+    try {
+      const hasEarned = await this.cleanCoinService.hasEarnedForAction(
+        userId,
+        TransactionSource.COURSE_COMPLETION,
+        { courseId }
+      );
+      
+      if (!hasEarned) {
+        await this.cleanCoinService.awardCoins(
+          userId,
+          50,
+          TransactionSource.COURSE_COMPLETION,
+          `Completed course: ${course.title}`,
+          { courseId }
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail the completion
+      console.error('Failed to award CleanCoins for course completion:', error);
+    }
 
     return completion;
   }

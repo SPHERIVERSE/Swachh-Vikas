@@ -20,6 +20,14 @@ export default function RegisterPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Business-specific fields
+  const [licenseNo, setLicenseNo] = useState('');
+  const [businessType, setBusinessType] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [pincode, setPincode] = useState('');
 
   const sendOtp = async () => {
     if (!phone) return setMessage('Please enter your phone number');
@@ -64,13 +72,25 @@ export default function RegisterPage() {
     
     setLoading(true);
     try {
-      await api.post('/auth/register', {
+      const registerData: any = {
         name,
         email,
         phone,
         password,
         role,
-      });
+      };
+      
+      // Add business-specific fields if role is BUSINESS
+      if (role === 'BUSINESS') {
+        registerData.licenseNo = licenseNo;
+        registerData.businessType = businessType;
+        registerData.address = address;
+        registerData.city = city;
+        registerData.state = state;
+        registerData.pincode = pincode;
+      }
+      
+      await api.post('/auth/register', registerData);
       setMessage('Registration successful! Please login.');
       setTimeout(() => router.push('/auth/login'), 2000);
     } catch (err: any) {
@@ -124,8 +144,100 @@ export default function RegisterPage() {
               >
                 <option value="CITIZEN">Citizen</option>
                 <option value="WORKER">Waste Worker</option>
+                <option value="BUSINESS">Business/Institute</option>
               </select>
             </div>
+            
+            {/* Business-specific fields */}
+            {role === 'BUSINESS' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Business/Institute Name *</label>
+                  <input
+                    type="text"
+                    placeholder="Enter business or institute name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">License/Registration Number *</label>
+                  <input
+                    type="text"
+                    placeholder="Enter license or registration number"
+                    value={licenseNo}
+                    onChange={(e) => setLicenseNo(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Business Type *</label>
+                  <select
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    required
+                  >
+                    <option value="">Select business type</option>
+                    <option value="Recycling Company">Recycling Company</option>
+                    <option value="NGO">NGO</option>
+                    <option value="Educational Institute">Educational Institute</option>
+                    <option value="Corporate">Corporate</option>
+                    <option value="Government Organization">Government Organization</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Address *</label>
+                  <textarea
+                    placeholder="Enter business address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                    rows={2}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">City *</label>
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">State *</label>
+                    <input
+                      type="text"
+                      placeholder="State"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Pincode *</label>
+                    <input
+                      type="text"
+                      placeholder="Pincode"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
               <div className="flex space-x-2">
