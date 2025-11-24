@@ -6,11 +6,14 @@ import { AuthModule } from '../auth/auth.module';
 import { CleanCoinModule } from '../cleancoin/cleancoin.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, forwardRef(() => CleanCoinModule)],
+  imports: [
+    PrismaModule,
+    forwardRef(() => AuthModule),
+    forwardRef(() => CleanCoinModule),
+  ],
   controllers: [BusinessController],
   providers: [BusinessService],
   exports: [BusinessService],
 })
 export class BusinessModule {}
-
 

@@ -19,6 +19,7 @@ export class CleanCoinService {
       courseId?: string;
       reportId?: string;
       listingId?: string;
+      quizId?: string;
     }
   ) {
     if (!userId) {
@@ -45,6 +46,7 @@ export class CleanCoinService {
         courseId: metadata?.courseId,
         reportId: metadata?.reportId,
         listingId: metadata?.listingId,
+        quizId: metadata?.quizId,
       },
     });
 

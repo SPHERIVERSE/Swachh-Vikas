@@ -11,6 +11,8 @@ interface Quiz {
   description?: string;
   questions: any[];
   rewardAmount: number;
+  cleanCoinReward?: number;
+  targetRole?: string;
   maxAttempts: number;
   startDate: string;
   endDate: string;
@@ -66,19 +68,65 @@ export default function QuizzesPage() {
 
   const handleCreateQuiz = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.title.trim()) {
+      alert('Please enter a quiz title');
+      return;
+    }
+    
+    if (!formData.rewardAmount || parseFloat(formData.rewardAmount) < 0) {
+      alert('Please enter a valid XP reward amount');
+      return;
+    }
+
+    if (!formData.startDate || !formData.endDate) {
+      alert('Please select both start and end dates');
+      return;
+    }
+
+    if (new Date(formData.endDate) <= new Date(formData.startDate)) {
+      alert('End date must be after start date');
+      return;
+    }
+
+    // Validate questions
+    const validQuestions = formData.questions.filter(q => 
+      q.question.trim() && 
+      q.options.every(opt => opt.trim()) &&
+      q.correctAnswer >= 0 && q.correctAnswer < q.options.length
+    );
+
+    if (validQuestions.length === 0) {
+      alert('Please add at least one valid question with all options filled');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('access_token');
+      
+      // Format questions properly
+      const formattedQuestions = validQuestions.map(q => ({
+        question: q.question.trim(),
+        options: q.options.map(opt => opt.trim()),
+        correctAnswer: q.correctAnswer,
+      }));
+
       await api.post('/business/quizzes', {
-        ...formData,
+        title: formData.title.trim(),
+        description: formData.description.trim() || undefined,
         rewardAmount: parseFloat(formData.rewardAmount),
         cleanCoinReward: formData.cleanCoinReward ? parseInt(formData.cleanCoinReward) : 0,
         targetRole: formData.targetRole || null,
-        maxAttempts: parseInt(formData.maxAttempts),
-        questions: formData.questions,
+        maxAttempts: parseInt(formData.maxAttempts) || 1,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        questions: formattedQuestions,
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Quiz created successfully! Activate it to make it available to citizens.');
+      
+      alert('Quiz created successfully! Activate it to make it available to users.');
       setShowCreateModal(false);
       setFormData({
         title: '',
@@ -93,7 +141,8 @@ export default function QuizzesPage() {
       });
       fetchQuizzes();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to create quiz');
+      console.error('Quiz creation error:', error);
+      alert(error.response?.data?.message || 'Failed to create quiz. Please check all fields and try again.');
     }
   };
 
@@ -212,7 +261,7 @@ export default function QuizzesPage() {
                     <span>Reward:</span>
                     <span className="font-semibold text-green-400">
                       {quiz.rewardAmount} XP
-                      {quiz.cleanCoinReward > 0 && ` + ${quiz.cleanCoinReward} CC`}
+                      {quiz.cleanCoinReward && quiz.cleanCoinReward > 0 && ` + ${quiz.cleanCoinReward} CC`}
                     </span>
                   </div>
                   {quiz.targetRole && (

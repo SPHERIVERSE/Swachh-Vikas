@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role, DriveStatus, QuizStatus, TransactionSource } from '@prisma/client';
+import { QuizStatus, Role } from '@prisma/client';
 import { CleanCoinService } from '../cleancoin/cleancoin.service';
+import { TransactionSource } from '@prisma/client';
 
 @Injectable()
 export class BusinessService {
@@ -11,24 +19,35 @@ export class BusinessService {
     private cleanCoinService: CleanCoinService,
   ) {}
 
-  // CSR Funds Management
-  async createCSRFund(businessId: string, data: { title: string; description?: string; amount: number }) {
+  // ----------------------------------------------------
+  // CREATE CSR FUND
+  // ----------------------------------------------------
+  async createCSRFund(businessId: string, dto: any) {
+    const amountValue =
+      typeof dto.amount === 'string' ? parseFloat(dto.amount) : dto.amount;
+
+    if (isNaN(amountValue) || amountValue <= 0) {
+      throw new BadRequestException('Amount must be a positive number.');
+    }
+
     return this.prisma.cSRFund.create({
       data: {
-        title: data.title,
-        description: data.description || '',
-        amount: data.amount,
+        title: dto.title,
+        description: dto.description ?? null,
+        amount: amountValue,
+        allocatedAmount: 0,
         businessId,
       },
     });
   }
 
-  async getCSRFunds(businessId: string) {
+  // ----------------------------------------------------
+  // GET FUNDS FOR BUSINESS
+  // ----------------------------------------------------
+  async getFunds(businessId: string) {
     return this.prisma.cSRFund.findMany({
       where: { businessId },
-      include: {
-        allocations: true,
-      },
+      include: { allocations: true },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -51,104 +70,115 @@ export class BusinessService {
     });
   }
 
-  async allocateCSRFund(fundId: string, businessId: string, data: { amount: number; purpose: string }) {
+  // ----------------------------------------------------
+  // ALLOCATE CSR FUND
+  // ----------------------------------------------------
+  async allocateCSRFund(fundId: string, businessId: string, dto: any) {
     const fund = await this.prisma.cSRFund.findUnique({ where: { id: fundId } });
-    if (!fund) throw new NotFoundException('CSR Fund not found');
-    if (fund.businessId !== businessId) throw new ForbiddenException('Not authorized');
-    if (fund.allocatedAmount + data.amount > fund.amount) {
-      throw new BadRequestException('Allocation exceeds available amount');
+    if (!fund) throw new NotFoundException('CSR Fund not found.');
+
+    if (fund.businessId !== businessId) {
+      throw new NotFoundException('CSR Fund not owned by this business.');
     }
 
-    await this.prisma.cSRFund.update({
-      where: { id: fundId },
-      data: { allocatedAmount: { increment: data.amount } },
-    });
+    const amountValue =
+      typeof dto.amount === 'string' ? parseFloat(dto.amount) : dto.amount;
 
-    return this.prisma.cSRFundAllocation.create({
-      data: {
-        fundId,
-        amount: data.amount,
-        purpose: data.purpose,
-      },
+    if (isNaN(amountValue) || amountValue <= 0) {
+      throw new BadRequestException('Invalid allocation amount.');
+    }
+
+    const availableAmount = fund.amount - fund.allocatedAmount;
+    if (availableAmount < amountValue) {
+      throw new BadRequestException(
+        `Insufficient balance. Available: ${availableAmount}, Requested: ${amountValue}`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const allocation = await tx.cSRFundAllocation.create({
+        data: {
+          fundId,
+          amount: amountValue,
+          purpose: dto.purpose ?? null,
+        },
+      });
+
+      await tx.cSRFund.update({
+        where: { id: fundId },
+        data: {
+          amount: { decrement: amountValue },
+          allocatedAmount: { increment: amountValue },
+        },
+      });
+
+      return allocation;
     });
   }
 
-  // Community Drives
-  async createCommunityDrive(businessId: string, data: {
-    title: string;
-    description: string;
-    location: string;
-    latitude?: number;
-    longitude?: number;
-    startDate: Date;
-    endDate: Date;
-    targetParticipants?: number;
-    rewardAmount?: number;
-  }) {
-    if (data.endDate <= data.startDate) {
-      throw new BadRequestException('End date must be after start date');
-    }
+  // ----------------------------------------------------
+  // COMMUNITY DRIVES
+  // ----------------------------------------------------
+  async createDrive(organizerId: string, dto: any) {
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    const endDate = dto.endDate ? new Date(dto.endDate) : new Date();
 
     return this.prisma.communityDrive.create({
       data: {
-        title: data.title,
-        description: data.description,
-        location: data.location,
-        latitude: data.latitude || null,
-        longitude: data.longitude || null,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        targetParticipants: data.targetParticipants || null,
-        rewardAmount: data.rewardAmount || null,
-        organizerId: businessId,
-        status: DriveStatus.UPCOMING,
+        title: dto.title,
+        description: dto.description ?? '',
+        location: dto.location ?? '',
+        latitude: dto.latitude ?? null,
+        longitude: dto.longitude ?? null,
+        startDate,
+        endDate,
+        status: dto.status ?? 'UPCOMING',
+        targetParticipants: dto.targetParticipants ?? null,
+        rewardAmount: dto.rewardAmount ?? 0,
+        organizerId,
       },
     });
   }
 
-  async getCommunityDrives(businessId: string) {
+  async getCommunityDrives(organizerId: string) {
     return this.prisma.communityDrive.findMany({
-      where: { organizerId: businessId },
-      include: {
-        participants: {
-          include: {
-            user: { select: { id: true, name: true, avatarUrl: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+      where: { organizerId },
+      include: { participants: true },
+      orderBy: { startDate: 'desc' },
     });
   }
 
-  // Awareness Quizzes
-  async createAwarenessQuiz(businessId: string, data: {
-    title: string;
-    description?: string;
-    questions: any[];
-    rewardAmount: number;
-    cleanCoinReward?: number;
-    targetRole?: Role;
-    maxAttempts: number;
-    startDate: Date;
-    endDate: Date;
-  }) {
-    if (data.endDate <= data.startDate) {
+  // ----------------------------------------------------
+  // AWARENESS QUIZZES
+  // ----------------------------------------------------
+  async createAwarenessQuiz(organizerId: string, dto: any) {
+    if (dto.endDate <= dto.startDate) {
       throw new BadRequestException('End date must be after start date');
     }
 
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    const endDate = dto.endDate ? new Date(dto.endDate) : new Date();
+
+    // Transform questions to match expected format
+    const questions = dto.questions?.map((q: any) => ({
+      question: q.question,
+      options: q.options,
+      correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : parseInt(q.correctAnswer) || 0,
+    })) || [];
+
     return this.prisma.awarenessQuiz.create({
       data: {
-        title: data.title,
-        description: data.description || '',
-        questions: data.questions,
-        rewardAmount: data.rewardAmount,
-        cleanCoinReward: data.cleanCoinReward || 0,
-        targetRole: data.targetRole || null,
-        maxAttempts: data.maxAttempts,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        organizerId: businessId,
-        status: QuizStatus.DRAFT,
+        title: dto.title,
+        description: dto.description ?? null,
+        questions: questions, // Store as JSON
+        rewardAmount: dto.rewardAmount ?? 0,
+        cleanCoinReward: dto.cleanCoinReward ?? 0,
+        maxAttempts: dto.maxAttempts ?? 1,
+        startDate,
+        endDate,
+        status: QuizStatus.DRAFT, // Always start as DRAFT
+        targetRole: dto.targetRole || null,
+        organizerId,
       },
     });
   }
@@ -164,38 +194,33 @@ export class BusinessService {
     });
   }
 
-  async getAwarenessQuizzes(businessId: string) {
+  async getQuizParticipationCount(quizId: string, userId: string): Promise<number> {
+    return this.prisma.awarenessQuizParticipation.count({
+      where: { quizId, userId },
+    });
+  }
+
+  async getAwarenessQuizzes(organizerId: string) {
     return this.prisma.awarenessQuiz.findMany({
-      where: { organizerId: businessId },
-      include: {
-        participations: {
-          include: {
-            user: { select: { id: true, name: true, avatarUrl: true } },
-          },
-        },
-      },
+      where: { organizerId },
+      include: { participations: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // Get all active quizzes (for citizens/workers to participate)
-  async getActiveQuizzes(userRole?: Role) {
-    const where: any = {
+  async getActiveQuizzes(role?: Role) {
+    const whereClause: any = {
       status: QuizStatus.ACTIVE,
       startDate: { lte: new Date() },
       endDate: { gte: new Date() },
     };
 
-    // Filter by target role if specified
-    if (userRole) {
-      where.OR = [
-        { targetRole: null }, // Quizzes for all roles
-        { targetRole: userRole }, // Quizzes for specific role
-      ];
+    if (role) {
+      whereClause.targetRole = role;
     }
 
     return this.prisma.awarenessQuiz.findMany({
-      where,
+      where: whereClause,
       include: {
         organizer: { select: { id: true, name: true, businessType: true } },
         _count: {
@@ -206,32 +231,33 @@ export class BusinessService {
     });
   }
 
-  // Get user's participation count for a quiz
-  async getQuizParticipationCount(quizId: string, userId: string): Promise<number> {
-    return this.prisma.awarenessQuizParticipation.count({
-      where: { quizId, userId },
-    });
-  }
-
-  // Submit quiz participation
   async submitQuizParticipation(quizId: string, userId: string, data: {
     answers: any[];
     score: number;
   }) {
     const quiz = await this.prisma.awarenessQuiz.findUnique({ where: { id: quizId } });
     if (!quiz) throw new NotFoundException('Quiz not found');
+
     if (quiz.status !== QuizStatus.ACTIVE) {
       throw new BadRequestException('Quiz is not active');
     }
 
-    // Check attempts
-    const existingAttempts = await this.prisma.awarenessQuizParticipation.count({
+    const now = new Date();
+    if (now < quiz.startDate || now > quiz.endDate) {
+      throw new BadRequestException('Quiz is not currently available');
+    }
+
+    // Check attempt limit
+    const attemptCount = await this.prisma.awarenessQuizParticipation.count({
       where: { quizId, userId },
     });
 
-    if (existingAttempts >= quiz.maxAttempts) {
-      throw new BadRequestException('Maximum attempts reached');
+    if (attemptCount >= quiz.maxAttempts) {
+      throw new BadRequestException(`Maximum attempts (${quiz.maxAttempts}) reached`);
     }
+
+    // Calculate reward (70% threshold)
+    const rewardEarned = data.score >= 70 ? quiz.rewardAmount : 0;
 
     const participation = await this.prisma.awarenessQuizParticipation.create({
       data: {
@@ -239,80 +265,31 @@ export class BusinessService {
         userId,
         answers: data.answers,
         score: data.score,
-        rewardEarned: data.score >= 70 ? quiz.rewardAmount : 0, // 70% threshold
-      },
-      include: {
-        user: { select: { id: true, name: true } },
-        quiz: { select: { title: true, organizerId: true, cleanCoinReward: true } },
+        rewardEarned,
+        completedAt: new Date(),
       },
     });
 
-    // Award XP reward if eligible
-    if (participation.rewardEarned > 0) {
-      await this.prisma.reward.create({
-        data: {
-          title: `Quiz Reward: ${quiz.title}`,
-          description: `Reward for completing awareness quiz`,
-          amount: participation.rewardEarned,
-          type: 'XP',
-          businessId: quiz.organizerId,
-          recipientId: userId,
-        },
-      });
-
-      // Update user XP
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { totalXp: { increment: participation.rewardEarned } },
-      });
-    }
-
-    // Award CleanCoins if eligible (70% threshold)
-    if (data.score >= 70 && quiz.cleanCoinReward > 0) {
-      try {
-        await this.cleanCoinService.awardCoins(
-          userId,
-          quiz.cleanCoinReward,
-          TransactionSource.QUIZ_COMPLETION,
-          `Completed quiz: ${quiz.title}`,
-        );
-      } catch (error) {
-        console.error('Failed to award CleanCoins for quiz completion:', error);
-        // Don't fail the participation if CleanCoin award fails
-      }
-    }
-
-    // Notify user
-    const systemReport = await this.prisma.civicReport.findFirst({
-      where: { title: { contains: 'System Notification' } },
-      select: { id: true },
-    });
-
-    if (systemReport) {
-      let message = '';
-      if (participation.rewardEarned > 0 && quiz.cleanCoinReward > 0 && data.score >= 70) {
-        message = `🎉 You earned ${participation.rewardEarned} XP and ${quiz.cleanCoinReward} CleanCoins for completing the quiz "${quiz.title}"!`;
-      } else if (participation.rewardEarned > 0) {
-        message = `🎉 You earned ${participation.rewardEarned} XP for completing the quiz "${quiz.title}"!`;
-      } else if (quiz.cleanCoinReward > 0 && data.score >= 70) {
-        message = `🎉 You earned ${quiz.cleanCoinReward} CleanCoins for completing the quiz "${quiz.title}"!`;
-      } else {
-        message = `✅ You completed the quiz "${quiz.title}"!`;
-      }
-
-      if (message) {
-        await this.prisma.notification.create({
-          data: {
-            userId,
-            reportId: systemReport.id,
-            message,
-          },
-        });
-      }
+    // Award CleanCoins if eligible
+    if (rewardEarned > 0 && quiz.cleanCoinReward > 0 && data.score >= 70) {
+      await this.cleanCoinService.awardCoins(
+        userId,
+        quiz.cleanCoinReward,
+        TransactionSource.QUIZ_COMPLETION,
+        `Completed quiz: ${quiz.title}`,
+        // THIS IS THE CORRECT 5TH ARGUMENT (metadata object):
+        { quizId: quizId } 
+      );
     }
 
     return participation;
   }
-}
 
+  async getUserQuizParticipation(quizId: string, userId: string) {
+    return this.prisma.awarenessQuizParticipation.findFirst({
+      where: { quizId, userId },
+      orderBy: { completedAt: 'desc' },
+    });
+  }
+}
 

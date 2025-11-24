@@ -1,16 +1,24 @@
 import {
   Controller,
-  Get,
   Post,
-  Body,
+  Get,
   Param,
+  Body,
+  Req,
   UseGuards,
   Query,
 } from '@nestjs/common';
 import { BusinessService } from './business.service';
+
+import { CreateCsrFundDto } from './dto/create-csr-fund.dto';
+import { AllocateCsrFundDto } from './dto/allocate-csr-fund.dto';
+import { CreateCommunityDriveDto } from './dto/create-community-drive.dto';
+import { CreateAwarenessQuizDto } from './dto/create-awareness-quiz.dto';
+
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
 import { AuthUser } from '../auth/auth-user.decorator';
 
 @Controller('business')
@@ -18,57 +26,66 @@ import { AuthUser } from '../auth/auth-user.decorator';
 export class BusinessController {
   constructor(private readonly businessService: BusinessService) {}
 
-  // CSR Funds
+  // ==================== CSR FUNDS ====================
+  
+  // CREATE CSR FUND
   @Post('csr-funds')
-  @Roles('BUSINESS')
-  async createCSRFund(@AuthUser('sub') businessId: string, @Body() body: any) {
-    return this.businessService.createCSRFund(businessId, body);
+  @Roles(Role.BUSINESS)
+  async createFund(@AuthUser('sub') businessId: string, @Body() dto: CreateCsrFundDto) {
+    return this.businessService.createCSRFund(businessId, dto);
   }
 
+  // GET CSR FUNDS
   @Get('csr-funds')
-  @Roles('BUSINESS')
-  async getCSRFunds(@AuthUser('sub') businessId: string) {
-    return this.businessService.getCSRFunds(businessId);
+  @Roles(Role.BUSINESS)
+  async getFunds(@AuthUser('sub') businessId: string) {
+    return this.businessService.getFunds(businessId);
+  }
+
+  // ALLOCATE FUND
+  @Post('csr-funds/:fundId/allocate')
+  @Roles(Role.BUSINESS)
+  async allocate(
+    @AuthUser('sub') businessId: string,
+    @Param('fundId') fundId: string,
+    @Body() dto: AllocateCsrFundDto,
+  ) {
+    return this.businessService.allocateCSRFund(fundId, businessId, dto);
   }
 
   // Admin endpoint to view all CSR funds
   @Get('csr-funds/all')
-  @Roles('ADMIN')
+  @Roles(Role.ADMIN)
   async getAllCSRFunds() {
     return this.businessService.getAllCSRFunds();
   }
 
-  @Post('csr-funds/:fundId/allocate')
-  @Roles('BUSINESS')
-  async allocateCSRFund(
-    @Param('fundId') fundId: string,
-    @AuthUser('sub') businessId: string,
-    @Body() body: any,
-  ) {
-    return this.businessService.allocateCSRFund(fundId, businessId, body);
-  }
-
-  // Community Drives
+  // ==================== COMMUNITY DRIVES ====================
+  
+  // CREATE COMMUNITY DRIVE
   @Post('drives')
-  @Roles('BUSINESS')
-  async createCommunityDrive(@AuthUser('sub') businessId: string, @Body() body: any) {
-    return this.businessService.createCommunityDrive(businessId, {
-      ...body,
-      startDate: new Date(body.startDate),
-      endDate: new Date(body.endDate),
+  @Roles(Role.BUSINESS)
+  async createDrive(@AuthUser('sub') businessId: string, @Body() dto: CreateCommunityDriveDto) {
+    return this.businessService.createDrive(businessId, {
+      ...dto,
+      startDate: new Date(dto.startDate),
+      endDate: new Date(dto.endDate),
     });
   }
 
+  // GET COMMUNITY DRIVES
   @Get('drives')
-  @Roles('BUSINESS')
-  async getCommunityDrives(@AuthUser('sub') businessId: string) {
+  @Roles(Role.BUSINESS)
+  async getDrives(@AuthUser('sub') businessId: string) {
     return this.businessService.getCommunityDrives(businessId);
   }
 
-  // Awareness Quizzes
+  // ==================== AWARENESS QUIZZES ====================
+  
+  // CREATE AWARENESS QUIZ (using /quizzes endpoint to match frontend)
   @Post('quizzes')
-  @Roles('BUSINESS')
-  async createAwarenessQuiz(@AuthUser('sub') businessId: string, @Body() body: any) {
+  @Roles(Role.BUSINESS)
+  async createQuiz(@AuthUser('sub') businessId: string, @Body() body: any) {
     return this.businessService.createAwarenessQuiz(businessId, {
       ...body,
       startDate: new Date(body.startDate),
@@ -76,16 +93,18 @@ export class BusinessController {
     });
   }
 
-  @Post('quizzes/:quizId/activate')
-  @Roles('BUSINESS')
-  async activateQuiz(@Param('quizId') quizId: string, @AuthUser('sub') businessId: string) {
-    return this.businessService.activateQuiz(quizId, businessId);
+  // GET AWARENESS QUIZZES (using /quizzes endpoint to match frontend)
+  @Get('quizzes')
+  @Roles(Role.BUSINESS)
+  async getQuizzes(@AuthUser('sub') businessId: string) {
+    return this.businessService.getAwarenessQuizzes(businessId);
   }
 
-  @Get('quizzes')
-  @Roles('BUSINESS')
-  async getAwarenessQuizzes(@AuthUser('sub') businessId: string) {
-    return this.businessService.getAwarenessQuizzes(businessId);
+  // ACTIVATE QUIZ
+  @Post('quizzes/:quizId/activate')
+  @Roles(Role.BUSINESS)
+  async activateQuiz(@Param('quizId') quizId: string, @AuthUser('sub') businessId: string) {
+    return this.businessService.activateQuiz(quizId, businessId);
   }
 
   // Public endpoints for citizens/workers
@@ -112,5 +131,4 @@ export class BusinessController {
     return this.businessService.submitQuizParticipation(quizId, userId, body);
   }
 }
-
 
